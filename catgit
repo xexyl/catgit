@@ -9,15 +9,16 @@
 # It allows for multiple globs, as noted above. By default it does not use any
 # cat options.
 #
-# DISCLAIMER AND WARNING: this is something of a hack and might be error prone.
-# It works for what is needed but possibly could be improved. Even so I like it
-# how it is and I don't think it would do much good to add many more additional
-# features.
+# This is something of a hack that was based on another script of mine,
+# sgit (https://github.com/xexyl/sgit), and so was not written from scratch. Thus
+# it is possible there are bugs that are not known. At this time, 21 September
+# 2023, I am sick so I have to limit what I do, but it should be good anyway. At
+# least there are no known bugs.
 #
 # - Cody Boone Ferguson (@xexyl)
 #
 
-export CATGIT_VERSION="0.0.0-1 21-09-2023" # format: major.minor.patch-release DD-MM-YYYY
+export CATGIT_VERSION="0.0.0-2 21-09-2023" # format: major.minor.patch-release DD-MM-YYYY
 
 USAGE="usage: $(basename "$0") [-h] [-V] [-v level] [-x] [-c cat] [-o options] <glob...>
 
@@ -32,7 +33,6 @@ catgit version: $CATGIT_VERSION"
 
 CAT="$(type -P cat)"
 export CAT
-export I_FLAG=
 export VERBOSITY=0
 
 # we need an array for cat commands
@@ -43,7 +43,7 @@ IFS=$'\t\n'
 
 # parse args
 #
-while getopts :hVv:x:o:c: flag; do
+while getopts :hVv:xo:c: flag; do
     case "$flag" in
     h)	echo "$USAGE" 1>&2
 	exit 2
@@ -73,6 +73,7 @@ while getopts :hVv:x:o:c: flag; do
 done
 
 shift $(( OPTIND - 1 ));
+
 
 # firewall
 
@@ -129,38 +130,23 @@ while [[ "$i" -lt "$GLOBS" ]]; do
 
 
     if [[ "$VERBOSITY" -ge 1 ]]; then
-	if [[ -z "$I_FLAG" ]]; then
-	    # ^----------^ SC2128 (warning): Expanding an array without an index only gives the first element.
-	    # shellcheck disable=SC2128
-	    if [[ -n "$CAT_OPTIONS" ]]; then
-		echo "debug[1]: about to run: git ls-files $1 | xargs $CAT ${CAT_OPTIONS[*]}" 1>&2
-	    else
-		echo "debug[1]: about to run: git ls-files $1 | xargs $CAT" 1>&2
-	    fi
+	# ^----------^ SC2128 (warning): Expanding an array without an index only gives the first element.
+	# shellcheck disable=SC2128
+	if [[ -n "$CAT_OPTIONS" ]]; then
+	    echo "debug[1]: about to run: git ls-files $1 | xargs $CAT ${CAT_OPTIONS[*]}" 1>&2
 	else
-	    if [[ -n "$CAT_OPTIONS" ]]; then
-		echo "debug[1]: about to run: git ls-files $1 | xargs $CAT ${CAT_OPTIONS[*]}" 1>&2
-	    else
-		echo "debug[1]: about to run: git ls-files $1 | xargs $CAT" 1>&2
-	    fi
+	    echo "debug[1]: about to run: git ls-files $1 | xargs $CAT" 1>&2
 	fi
     fi
 
-    if [[ -z "$I_FLAG" ]]; then
-	if [[ -n "$CAT_OPTIONS" ]]; then
-	    git ls-files "$1" | xargs "$CAT" "${CAT_OPTIONS[@]}"
-	else
-	    git ls-files "$1" | xargs "$CAT"
-	fi
+    if [[ -n "$CAT_OPTIONS" ]]; then
+	git ls-files "$1" | xargs "$CAT" "${CAT_OPTIONS[@]}"
     else
-	if [[ -n "$CAT_OPTIONS" ]]; then
-	    git ls-files "$1" | xargs "$CAT" "${CAT_OPTIONS[@]}"
-	else
-	    git ls-files "$1" | xargs "$CAT"
-	fi
+	git ls-files "$1" | xargs "$CAT"
     fi
     ((i++))
     shift 1
+
     if [[ "$VERBOSITY" -gt 2 ]]; then
 	if [[ "$#" -eq 1 ]]; then
 	    echo "debug[2]: $# remaining glob" 1>&2

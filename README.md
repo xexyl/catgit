@@ -7,7 +7,13 @@ work if you want `cat` options or you want to use a different `cat` like the
 command](https://www.cyberciti.biz/open-source/bat-linux-command-a-cat-clone-with-written-in-rust/)
 (though it should be noted this was not tested).
 
+## Disclaimer
 
+This is something of a hack that was based on another script of mine,
+[sgit](https://github.com/xexyl/sgit), and so was not written from scratch. Thus
+it is possible there are bugs that are not known. At this time, 21 September
+2023, I am sick so I have to limit what I do, but it should be good anyway. At
+least there are no known bugs.
 
 ## Usage
 
@@ -21,7 +27,7 @@ usage: catgit [-h] [-V] [-v level] [-x] [-c cat] [-o options] <glob...>
     -o options		    options to cat
     -c cat		    set path to cat
 
-catgit version: 0.0.0-1 21-09-2023
+catgit version: 0.0.0-2 21-09-2023
 ```
 
 You **MUST** specify at least one glob but you can specify more than one. If
