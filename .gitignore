@@ -1,0 +1,5 @@
+# catgit .gitignore file
+*.bak
+*.bku
+readme.html
+README.html

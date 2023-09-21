@@ -1,0 +1,186 @@
+#!/usr/bin/env bash
+#
+# catgit - run cat (by default with no args) on all files (or one or more globs)
+# under git control
+#
+# This script allows one to run cat under git control without having to come up
+# with a list of files first and then passing those to the command.
+#
+# It allows for multiple globs, as noted above. By default it does not use any
+# cat options.
+#
+# DISCLAIMER AND WARNING: this is something of a hack and might be error prone.
+# It works for what is needed but possibly could be improved. Even so I like it
+# how it is and I don't think it would do much good to add many more additional
+# features.
+#
+# - Cody Boone Ferguson (@xexyl)
+#
+
+export CATGIT_VERSION="0.0.0-1 21-09-2023" # format: major.minor.patch-release DD-MM-YYYY
+
+USAGE="usage: $(basename "$0") [-h] [-V] [-v level] [-x] [-c cat] [-o options] <glob...>
+
+    -h			    print help and exit
+    -V			    print version and exit
+    -v level		    set verbosity level
+    -x			    turn on tracing (set -x)
+    -o options		    options to cat
+    -c cat		    set path to cat
+
+catgit version: $CATGIT_VERSION"
+
+CAT="$(type -P cat)"
+export CAT
+export I_FLAG=
+export VERBOSITY=0
+
+# we need an array for cat commands
+declare -a CAT_OPTIONS
+
+# we need to remove ' ' from the IFS!
+IFS=$'\t\n'
+
+# parse args
+#
+while getopts :hVv:x:o:c: flag; do
+    case "$flag" in
+    h)	echo "$USAGE" 1>&2
+	exit 2
+	;;
+    V)	echo "$CATGIT_VERSION" 1>&2
+	exit 2
+	;;
+    v)	VERBOSITY="$OPTARG";
+	;;
+    x)	set -x
+	;;
+    c)	CAT="$OPTARG"
+	;;
+    o)	CAT_OPTIONS+=("$OPTARG")
+	;;
+    \?) echo "$0: ERROR: invalid option: -$OPTARG" 1>&2
+	exit 3
+	;;
+    :)	echo "$0: ERROR: option -$OPTARG requires an argument" 1>&2
+	echo 1>&2
+	echo "$USAGE" 1>&2
+	exit 3
+	;;
+   *)
+	;;
+    esac
+done
+
+shift $(( OPTIND - 1 ));
+
+# firewall
+
+
+# check that cat is executable
+if [[ -z "$CAT" ]]; then
+    echo "$(basename "$0"): ERROR: cat cannot be empty" 1>&2
+    echo 1>&2
+    echo "$USAGE" 1>&2
+    exit 2
+elif [[ ! -f "$CAT" ]]; then
+    echo "$(basename "$0"): ERROR: cat is not a regular file: $CAT" 1>&2
+    echo 1>&2
+    echo "$USAGE" 1>&2
+    exit 2
+elif [[ ! -x "$CAT" ]]; then
+    echo "$(basename "$0"): ERROR: cat is not an executable file: $CAT" 1>&2
+    echo 1>&2
+    echo "$USAGE" 1>&2
+    exit 2
+fi
+
+# also check number of remaining args
+if [[ "$#" -eq 0 ]]; then
+    echo "$(basename "$0"): ERROR: you must specify at least one glob" 1>&2
+    echo 1>&2
+    echo "$USAGE" 1>&2
+    exit 2
+fi
+
+# then check that this is a git repo!
+git status 2>/dev/null 1>&2
+status="$?"
+if [[ "$status" -ne 0 ]]; then
+    echo "$(basename "$0"): ERROR: ${PWD} not a git repository" 1>&2
+    exit 1
+fi
+
+if [[ $VERBOSITY -gt 1 ]]; then
+    echo "debug[2]: cat option(s): ${CAT_OPTIONS[*]}" 1>&2
+fi
+
+# This might not the best performance because it does this on all files of the
+# glob rather than only those files matched by the glob with matching text but
+# it's better than it used to be (it used to run git ls-files on the repo for
+# each cat command so the more you had the slow it would become as it had to get
+# the list of files each time!).
+#
+# A better approach would be to somehow use git grep to find files that match
+# but this would complicate the command line (at least in anyway I can think of
+# how to do it) so we do it on all files in the repo.
+#
+# But these would possibly require additional args to the command and
+# unnecessarily complicate matters. Anyway it's something of a hack so it
+# doesn't have to be perfect (not that there even is such a thing as perfect).
+#
+if [[ "$VERBOSITY" -gt 1 ]]; then
+    echo "debug[2]: looping through all globs" 1>&2
+fi
+
+
+GLOBS="$#"
+i=0
+while [[ "$i" -lt "$GLOBS" ]]; do
+    if [[ "$VERBOSITY" -gt 1 ]]; then
+	echo "debug[2]: found glob: $i" 1>&2
+    fi
+
+
+    if [[ "$VERBOSITY" -ge 1 ]]; then
+	if [[ -z "$I_FLAG" ]]; then
+	    # ^----------^ SC2128 (warning): Expanding an array without an index only gives the first element.
+	    # shellcheck disable=SC2128
+	    if [[ -n "$CAT_OPTIONS" ]]; then
+		echo "debug[1]: about to run: git ls-files $1 | xargs $CAT ${CAT_OPTIONS[*]}" 1>&2
+	    else
+		echo "debug[1]: about to run: git ls-files $1 | xargs $CAT" 1>&2
+	    fi
+	else
+	    if [[ -n "$CAT_OPTIONS" ]]; then
+		echo "debug[1]: about to run: git ls-files $1 | xargs $CAT ${CAT_OPTIONS[*]}" 1>&2
+	    else
+		echo "debug[1]: about to run: git ls-files $1 | xargs $CAT" 1>&2
+	    fi
+	fi
+    fi
+
+    if [[ -z "$I_FLAG" ]]; then
+	if [[ -n "$CAT_OPTIONS" ]]; then
+	    git ls-files "$1" | xargs "$CAT" "${CAT_OPTIONS[@]}"
+	else
+	    git ls-files "$1" | xargs "$CAT"
+	fi
+    else
+	if [[ -n "$CAT_OPTIONS" ]]; then
+	    git ls-files "$1" | xargs "$CAT" "${CAT_OPTIONS[@]}"
+	else
+	    git ls-files "$1" | xargs "$CAT"
+	fi
+    fi
+    ((i++))
+    shift 1
+    if [[ "$VERBOSITY" -gt 2 ]]; then
+	if [[ "$#" -eq 1 ]]; then
+	    echo "debug[2]: $# remaining glob" 1>&2
+	else
+	    echo "debug[2]: $# remaining globs" 1>&2
+	fi
+    fi
+
+done
