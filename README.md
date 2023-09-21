@@ -140,6 +140,7 @@ it popped into my head later on in the day.
 ## IAQ / NAQ (infrequently asked question(s) / never asked question(s) :-) )
 
 Q: Why did you call it `catgit` and not `gitcat`?
+
 A: Because as I noted above cats can be right little gits. :-) That's the only
 reason. It's a joke for ailurophiles (cat lovers) like myself.
 
