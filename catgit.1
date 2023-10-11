@@ -1,0 +1,181 @@
+.\" section 1 man page for catgit
+.\"
+.\" catgit was written by Cody Boone Ferguson in 2023.
+.\"
+.\" This is dedicated to my dear sweet Mum Dianne and my wonderful cousin Dani.
+.\"
+.TH catgit 1 "11 October 2023" "catgit" ""
+.SH NAME
+.B catgit
+\- run 
+.BR cat (1)
+on one or more globs under
+.BR git (1)
+control
+.SH SYNOPSIS
+.B catgit
+.RB [\| \-h \|]
+.RB [\| \-V \|]
+.RB [\| \-v
+.IR level \|]
+.RB [\| \-x \|]
+.RB [\| \-c
+.IR cat \|]
+.RB [\| \-o
+cat_option \|]
+.RB [\| \-n \|]
+.IR glob...
+.SH DESCRIPTION
+.B catgit
+allows one to run
+.BR cat (1)
+on one or more globs under
+.BR git (1)
+control.
+By default it just cats files in
+.BR git (1)
+control specified by the globs.
+With the option
+.B \-c
+you can specify an alternative
+.BR cat (1)
+to use.
+To specify
+.BR cat (1)
+options use
+.BR \-o .
+Although it might work to specify more than one
+.BR cat (1)
+option with one
+.B \-o
+it is recommended that you do not.
+If it requires an option arg or you need a space for some reason you will have to quote it.
+You must type the
+.B \-
+for short options and
+.B \-\-
+for long options.
+If you want shell tracing enabled use the
+.B \-x
+option.
+This is not very useful in most cases but it is good for debugging.
+If you want verbose output to see what the script is doing you can specify a debug level with
+.BR \-v .
+.PP
+The
+.B \-n
+option will enable dry\-run mode.
+If there is a verbosity level greater than or equal to 1 it will show the
+.BR cat (1)
+command that would have been done on each file if the
+.B \-n
+option was not used.
+Otherwise it will only show the files that would be acted on if the
+.B \-n
+option was not used.
+.PP
+Any text after the final option is considered a glob.
+At least one glob must be specified.
+A glob of
+.I .
+will match all files under git control from the current working directory.
+If you run the command from a directory that is not a
+.BR git (1)
+repo it is an error.
+.SH OPTIONS
+.TP
+.B \-h
+Show help and exit.
+.TP
+.B \-V
+Show version and exit.
+.TP
+.BI \-v\  level
+Set verbosity level.
+.TP
+.B \-x
+Turn on tracing (set \-x)
+.TP
+.BI \-o\  cat_option
+Append
+.BR cat (1)
+options to options list
+.RS
+.br
+NOTE: you must pass the '-' for short options and '--' for long options!
+.br
+NOTE: if you need a space in an option you should quote it!
+.RE
+.TP
+.BI \-c\  cat
+Set path to
+.BR cat (1)
+.TP
+.B \-n
+Enable dry-mode.
+If verbosity is set to greater than or equal to 1 it will show what
+.BR cat (1)
+command would have been run on each file if the
+.B \-n
+option was not used; otherwise it will only show the files that would have been catted if the
+.B \-n
+option was not used.
+.RS
+.SH EXIT STATUS
+.TP
+0
+command succeeded
+.TQ
+1
+command not run in a
+.BR git (1)
+repository
+.TQ
+2
+.B \-h
+and help string printed or
+.B \-V
+and version string printed
+.TQ
+3
+invalid command line, invalid option or option missing an argument
+.SH BUGS
+.PP
+Cody Boone Ferguson wrote it! :)
+.PP
+On a more serious note there are no known bugs but if you have an issue with the tool please report it at the GitHub issues page.
+You can find it at
+.br
+.IR <https://github.com/xexyl/catgit/issues> .
+.SH EXAMPLES
+.PP
+Cat specific C files under git control in the
+.I src
+directory
+.IR
+.sp
+.RS
+.ft B
+catgit 'src/*.c'
+.ft R
+.RE
+.PP
+Cat
+.BR catgit (1)
+itself with the
+.B \-n
+option
+.sp
+.RS
+.ft B
+catgit \-o \-n catgit
+.ft R
+.RE
+.PP
+For more examples see the following link:
+.IR \<https://github.com/xexyl/catgit#examples\>
+.SH AUTHOR
+Cody Boone Ferguson
+.SH SEE ALSO
+For additional details including the history, script history and other things about the tool, see:
+.IR \<https://github.com/xexyl/catgit#readme\>
