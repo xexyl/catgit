@@ -3,24 +3,32 @@
 # catgit - run cat (by default with no args) on all files (or one or more globs)
 # under git control
 #
-# This script allows one to run cat under git control without having to come up
-# with a list of files first and then passing those to the command.
+# This script allows one to run cat on files under git control without having to
+# come up with a list of files first and then passing those to the command. Just
+# like with cat(1) itself you need to be careful about not specifying a glob
+# that results in finding a binary file.
 #
 # It allows for multiple globs, as noted above. By default it does not use any
-# cat options.
+# cat options but you can specify cat options with the -o option. One option per
+# -o!
 #
-# This is something of a hack that was based on another script of mine,
-# sgit (https://github.com/xexyl/sgit), and so was not written from scratch. Thus
-# it is possible there are bugs that are not known. At this time, 21 September
-# 2023, I am sick so I have to limit what I do, but it should be good anyway. At
-# least there are no known bugs.
+# This was originally something of a hack that was based on another script of
+# mine, sgit (https://github.com/xexyl/sgit), and so was not written from
+# scratch. Thus it is possible there are bugs that are not known. At the time of
+# the original creation of the script, 21 September 2023, I was sick so I had to
+# limit what I do, but it should be good anyway. At least there are no known
+# bugs.
+#
+# A man page is in catgit.1.
+#
+# This is dedicated to my dear sweet Mum Dianne and my wonderful cousin Dani.
 #
 # - Cody Boone Ferguson (@xexyl)
 #
 
-export CATGIT_VERSION="0.0.0-2 21-09-2023" # format: major.minor.patch-release DD-MM-YYYY
+export CATGIT_VERSION="1.0.0-1 11-10-2023" # format: major.minor.patch-release DD-MM-YYYY
 
-USAGE="usage: $(basename "$0") [-h] [-V] [-v level] [-x] [-c cat] [-o options] <glob...>
+USAGE="usage: $(basename "$0") [-h] [-V] [-v level] [-x] [-c cat] [-o options] [-n] <glob...>
 
     -h			    print help and exit
     -V			    print version and exit
@@ -29,21 +37,34 @@ USAGE="usage: $(basename "$0") [-h] [-V] [-v level] [-x] [-c cat] [-o options] <
     -o options		    options to cat
     -c cat		    set path to cat
 
+    -n			    dry-run: only show files that would be modified but do not touch them
+
+				NOTE: depending on verbosity level, only the files considered will
+				be printed or the cat command (including options if any) and the files
+				will be printed
+
 catgit version: $CATGIT_VERSION"
+
+
+# before we do anything check that this is a git repo!
+git status 2>/dev/null 1>&2
+status="$?"
+if [[ "$status" -ne 0 ]]; then
+    echo "$(basename "$0"): ERROR: ${PWD} not a git repository" 1>&2
+    exit 1
+fi
 
 CAT="$(type -P cat)"
 export CAT
 export VERBOSITY=0
+export DRY_RUN_OPTION=""
 
-# we need an array for cat commands
+# we need an array for cat options
 declare -a CAT_OPTIONS
-
-# we need to remove ' ' from the IFS!
-IFS=$'\t\n'
 
 # parse args
 #
-while getopts :hVv:xo:c: flag; do
+while getopts :hVv:xo:c:n flag; do
     case "$flag" in
     h)	echo "$USAGE" 1>&2
 	exit 2
@@ -58,6 +79,8 @@ while getopts :hVv:xo:c: flag; do
     c)	CAT="$OPTARG"
 	;;
     o)	CAT_OPTIONS+=("$OPTARG")
+	;;
+    n)	DRY_RUN_OPTION="-n"
 	;;
     \?) echo "$0: ERROR: invalid option: -$OPTARG" 1>&2
 	exit 3
@@ -77,49 +100,43 @@ shift $(( OPTIND - 1 ));
 
 # firewall
 
-
 # check that cat is executable
 if [[ -z "$CAT" ]]; then
-    echo "$(basename "$0"): ERROR: cat cannot be empty" 1>&2
-    echo 1>&2
     echo "$USAGE" 1>&2
+    echo 1>&2
+    echo "$(basename "$0"): ERROR: cat cannot be empty" 1>&2
     exit 2
 elif [[ ! -f "$CAT" ]]; then
+    echo "$USAGE" 1>&2
+    echo 1>&2
     echo "$(basename "$0"): ERROR: cat is not a regular file: $CAT" 1>&2
     echo 1>&2
-    echo "$USAGE" 1>&2
     exit 2
 elif [[ ! -x "$CAT" ]]; then
-    echo "$(basename "$0"): ERROR: cat is not an executable file: $CAT" 1>&2
-    echo 1>&2
     echo "$USAGE" 1>&2
+    echo 1>&2
+    echo "$(basename "$0"): ERROR: cat is not an executable file: $CAT" 1>&2
     exit 2
 fi
 
 # also check number of remaining args
 if [[ "$#" -eq 0 ]]; then
-    echo "$(basename "$0"): ERROR: you must specify at least one glob" 1>&2
-    echo 1>&2
     echo "$USAGE" 1>&2
+    echo 1>&2
+    echo "$(basename "$0"): ERROR: you must specify at least one glob" 1>&2
     exit 2
 fi
 
-# then check that this is a git repo!
-git status 2>/dev/null 1>&2
-status="$?"
-if [[ "$status" -ne 0 ]]; then
-    echo "$(basename "$0"): ERROR: ${PWD} not a git repository" 1>&2
-    exit 1
-fi
-
-if [[ $VERBOSITY -gt 1 ]]; then
-    echo "debug[2]: cat option(s): ${CAT_OPTIONS[*]}" 1>&2
+# We only want to check that the array is not empty so we disable this warning:
+# ^------------^ SC2128 (warning): Expanding an array without an index only gives the first element.
+# shellcheck disable=SC2128
+if [[ $VERBOSITY -gt 1 && -n "${CAT_OPTIONS}" ]]; then
+    echo "debug[2]: cat options array: ${CAT_OPTIONS[*]}" 1>&2
 fi
 
 if [[ "$VERBOSITY" -gt 1 ]]; then
     echo "debug[2]: looping through all globs" 1>&2
 fi
-
 
 GLOBS="$#"
 i=0
@@ -128,8 +145,10 @@ while [[ "$i" -lt "$GLOBS" ]]; do
 	echo "debug[2]: found glob: $i" 1>&2
     fi
 
-
-    if [[ "$VERBOSITY" -ge 1 ]]; then
+    if [[ "$VERBOSITY" -ge 1 && -z "$DRY_RUN_OPTION" ]]; then
+	# we only need to know if there are any cat options, not what the
+	# options are, so we disable this warning:
+	#
 	# ^----------^ SC2128 (warning): Expanding an array without an index only gives the first element.
 	# shellcheck disable=SC2128
 	if [[ -n "$CAT_OPTIONS" ]]; then
@@ -139,7 +158,28 @@ while [[ "$i" -lt "$GLOBS" ]]; do
 	fi
     fi
 
-    if [[ -n "$CAT_OPTIONS" ]]; then
+    # dry run mode
+    if [[ -n "$DRY_RUN_OPTION" ]]; then
+	if [[ -n "$CAT_OPTIONS" ]]; then
+	    for f in $(git ls-files "$1" | xargs); do
+		if [[ "$VERBOSITY" -ge 1 ]]; then
+		    echo "$CAT" "${CAT_OPTIONS[*]}" "$f" 1>&2
+		else
+		    echo "$f" 1>&2
+		fi
+	    done
+	else
+	    for f in $(git ls-files "$1"); do
+		if [[ "$VERBOSITY" -ge 1 ]]; then
+		    echo "$CAT" "$f" 1>&2
+		else
+		    echo "$f" 1>&2
+		fi
+	    done
+	fi
+
+    # don' dry run this
+    elif [[ -n "$CAT_OPTIONS" ]]; then
 	git ls-files "$1" | xargs "$CAT" "${CAT_OPTIONS[@]}"
     else
 	git ls-files "$1" | xargs "$CAT"
