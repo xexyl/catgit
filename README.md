@@ -40,7 +40,7 @@ usage: catgit [-h] [-V] [-v level] [-x] [-c cat] [-o options] [-n] <glob...>
 				be printed or the cat command (including options if any) and the files
 				will be printed
 
-catgit version: 1.0.0-1 11-10-2023
+catgit version: 1.0.1 25-06-2025
 ```
 
 You **MUST** specify at least one glob but you can specify more than one. If
@@ -120,7 +120,7 @@ This would show what would be run if `-n` was not specified. For instance the
 above command might show:
 
 ```sh
-$ catgit -v 1 -n . 
+$ catgit -v 1 -n .
 /opt/local/libexec/gnubin/cat .gitignore
 /opt/local/libexec/gnubin/cat Makefile
 /opt/local/libexec/gnubin/cat README.md
@@ -171,7 +171,7 @@ catgit -v 3 '*README.md' '*.c' 1>/dev/null
 With that you might see something like:
 
 ```sh
-debug[2]: cat option(s): 
+debug[2]: cat option(s):
 debug[2]: looping through all globs
 debug[2]: found glob: 0
 debug[1]: about to run: git ls-files *README.md | xargs /opt/local/libexec/gnubin/cat
